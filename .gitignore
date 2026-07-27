@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.xlsx
+
+# Datos reales sin cifrar y la clave de cifrado -- nunca van al repo publico.
+# Solo se commitean los .json.enc (ver cifrar.py / descifrar.py).
+data/*.json
+clave.key

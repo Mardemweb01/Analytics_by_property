@@ -1,0 +1,4 @@
+# Otra PC (sin ODBC de Sage, Python 64-bit normal) -- solo para correr
+# convertir_parquet.py sobre los .json que ya dejo la maquina de Sage.
+pandas
+pyarrow
