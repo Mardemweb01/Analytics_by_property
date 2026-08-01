@@ -1,7 +1,9 @@
 # ============================================================================
 # MODULO: extraer_y_guardar.py
-# OBJETIVO: correr los 4 extractores de Sage 50 (Chart, Customers, Vendors,
-# Movimientos) contra un DSN real y guardar el resultado como JSON en data/.
+# OBJETIVO: correr los 5 extractores de Sage 50 (Chart, Customers, Vendors,
+# JrnlRow, JrnlHdr) contra un DSN real y guardar el resultado como JSON en
+# data/. JrnlRow y JrnlHdr se extraen por separado, sin cruzarlas -- el join
+# por PostOrder es trabajo de staging, no de la extraccion.
 #
 # Por que JSON y no Parquet directo: esta maquina solo puede tener Python de
 # 32 bits (lo exige el driver ODBC de Sage), y pandas/pyarrow no publican
@@ -22,7 +24,7 @@ from conexion import conectar
 from extractores.chart import extraer_chart
 from extractores.customers import extraer_customers
 from extractores.vendors import extraer_vendors
-from extractores.movimientos import extraer_movimientos
+from extractores.movimientos import extraer_jrnlrow, extraer_jrnlhdr
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -30,13 +32,14 @@ EXTRACTORES = {
     "chart": extraer_chart,
     "customers": extraer_customers,
     "vendors": extraer_vendors,
-    "movimientos": extraer_movimientos,
+    "jrnlrow": extraer_jrnlrow,
+    "jrnlhdr": extraer_jrnlhdr,
 }
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Extrae Chart/Customers/Vendors/Movimientos de Sage 50 y los guarda como Parquet"
+        description="Extrae Chart/Customers/Vendors/JrnlRow/JrnlHdr de Sage 50 y los guarda como JSON"
     )
     parser.add_argument("dsn", help="Nombre del DSN ODBC del PH")
     args = parser.parse_args()

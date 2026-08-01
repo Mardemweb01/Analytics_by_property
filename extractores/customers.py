@@ -7,10 +7,13 @@
 
 
 # Sage devuelve Balance como texto con separador de miles (ej. "1,234.56")
-# o None si el campo esta vacio -- normaliza a float para poder sumarlo.
+# o None si el campo esta vacio -- normaliza a float, pero preserva None: no
+# es lo mismo "no habia balance" que "el balance era cero", y mapear a 0.0 aca
+# borraria esa distincion antes de que nadie pueda verla. Resolverla es
+# trabajo de staging (COALESCE).
 def _num(v):
     if v is None:
-        return 0.0
+        return None
     return float(str(v).replace(",", "").strip())
 
 

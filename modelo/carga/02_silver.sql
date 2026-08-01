@@ -1,13 +1,12 @@
 -- ============================================================================
 -- CARGA A SILVER -- de staging al esquema estrella.
 --
--- FULL REFRESH: trunca y recarga. No es preferencia, es una limitacion del
--- origen -- la extraccion no trae "PostOrder", asi que una linea de JrnlRow no
--- tiene identificador unico y no se puede hacer upsert. Ver la nota en
--- silver/02_hechos.sql.
---
--- A 6,521 filas el full refresh tarda segundos. Cuando eso deje de ser cierto,
--- primero hay que arreglar la extraccion.
+-- FULL REFRESH: trunca y recarga. La extraccion ya trae "PostOrder"
+-- (extractores/movimientos.py separa JrnlRow y JrnlHdr y expone la clave que
+-- los vincula), asi que un upsert por post_order + indice de linea es
+-- tecnicamente posible. Full refresh sigue siendo la decision actual porque a
+-- 6,521 filas tarda segundos -- no porque el origen lo impida. Ver la nota en
+-- silver/02_hechos.sql antes de migrar a incremental.
 --
 -- IDEMPOTENTE: correrlo dos veces seguidas da el mismo resultado. Si el
 -- control de calidad aborta, se corrige el origen y se vuelve a correr sin

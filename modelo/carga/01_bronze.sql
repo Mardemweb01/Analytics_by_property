@@ -43,11 +43,18 @@ FROM '$(ruta_base)/vendors.parquet'
 WITH (FILE_TYPE = 'PARQUET');
 GO
 
-COPY INTO bronze.movimientos
-    (gl_acct_number, fecha, monto, journal, referencia, descripcion,
+COPY INTO bronze.jrnlrow
+    (post_order, gl_acct_number, monto, journal, descripcion,
      customer_record_number, vendor_record_number, date_cleared,
      _lote_id, _propiedad_origen, _dsn_origen, _archivo_origen, _cargado_en)
-FROM '$(ruta_base)/movimientos.parquet'
+FROM '$(ruta_base)/jrnlrow.parquet'
+WITH (FILE_TYPE = 'PARQUET');
+GO
+
+COPY INTO bronze.jrnlhdr
+    (post_order, fecha, referencia,
+     _lote_id, _propiedad_origen, _dsn_origen, _archivo_origen, _cargado_en)
+FROM '$(ruta_base)/jrnlhdr.parquet'
 WITH (FILE_TYPE = 'PARQUET');
 GO
 

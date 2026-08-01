@@ -64,19 +64,23 @@ GO
 -- Es un ROW_NUMBER() generado en la carga, y NO ES ESTABLE ENTRE CARGAS: la
 -- misma linea contable puede recibir un numero distinto si se recarga.
 --
--- No es una decision de diseno, es una limitacion del origen. La extraccion
--- (extractores/movimientos.py) NO trae "PostOrder" ni el indice de fila
--- dentro del asiento, asi que una linea de JrnlRow no tiene identificador
--- unico: dos lineas con la misma cuenta, fecha, monto y referencia son
--- indistinguibles, y son perfectamente legitimas en contabilidad (dos gastos
--- iguales en el mismo asiento).
+-- Ya no es una limitacion del origen: extractores/movimientos.py separa
+-- JrnlRow y JrnlHdr y expone "PostOrder" en ambos (bronze.jrnlrow.post_order,
+-- bronze.jrnlhdr.post_order). Pero PostOrder identifica el ASIENTO, no la
+-- LINEA -- dentro de un mismo post_order, dos lineas con la misma cuenta,
+-- fecha, monto y referencia siguen siendo indistinguibles entre si (y son
+-- perfectamente legitimas en contabilidad: dos gastos iguales en el mismo
+-- asiento). Falta el indice de fila dentro del asiento para que la clave sea
+-- estable.
 --
--- CONSECUENCIA: la carga tiene que ser FULL REFRESH (truncate + reload), no
--- incremental. Con 6,521 filas eso tarda segundos, asi que hoy no duele.
+-- CONSECUENCIA HOY: la carga sigue siendo FULL REFRESH (truncate + reload).
+-- Es una decision, no una obligacion -- con 6,521 filas tarda segundos, asi
+-- que no hay urgencia en cambiarla.
 --
--- COMO ARREGLARLO cuando duela: agregar "PostOrder" al SELECT de
--- extractores/movimientos.py y numerar las filas dentro de cada asiento. Con
--- eso (PostOrder, indice) pasa a ser clave natural estable y la carga
+-- COMO ARREGLARLO cuando duela: JrnlRow no expone un indice de fila propio en
+-- esta extraccion; hay que numerar las filas dentro de cada post_order al
+-- extraer (ROW_NUMBER() sobre el cursor, o el orden natural si Sage lo
+-- garantiza). Con (post_order, indice) como clave natural estable, la carga
 -- incremental se vuelve posible.
 -- ============================================================================
 

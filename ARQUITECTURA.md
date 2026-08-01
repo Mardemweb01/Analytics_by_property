@@ -93,7 +93,8 @@ a propósito.
 
 Esa garantía cubre el medio de la cadena. Las puntas son ingeniería nuestra,
 y hoy la de entrada no existe: `extraer_y_guardar.py` escribe siempre a
-`data/movimientos.json`, así que un segundo PH pisa al primero.
+`data/*.json` (`chart.json`, `customers.json`, `vendors.json`, `jrnlrow.json`,
+`jrnlhdr.json`), así que un segundo PH pisa al primero.
 
 ### El principio: una entrada de la que se deriva todo
 
@@ -116,7 +117,7 @@ equivocado— deja de ser posible porque no hay dónde escribirlo mal.
 ### Guardarraíles
 
 **La extracción exige la propiedad y deriva la ruta.**
-`data/<propiedad>/<timestamp>/movimientos.json`. Que la corrida quede fechada
+`data/<propiedad>/<timestamp>/<tabla>.json`. Que la corrida quede fechada
 resuelve además que hoy cada extracción borre la anterior.
 
 **El proceso se niega a escribir sobre datos de otra propiedad.** Si la
@@ -226,9 +227,13 @@ empuja.
 en un workspace aparte leyendo agregados vía shortcuts de OneLake — nunca
 metiendo un discriminador en las tablas.
 
-**Carga full refresh, no incremental.** La extracción no trae `PostOrder`, así
-que una línea de `JrnlRow` no tiene identificador único. Con 6,521 filas el
-costo es irrelevante.
+**Carga full refresh, no incremental.** La extracción ya trae `PostOrder`
+(`extractores/movimientos.py` separa `JrnlRow` y `JrnlHdr` y expone la clave
+que los vincula), pero `PostOrder` identifica el asiento, no la línea — sin un
+índice de fila dentro del asiento, una línea de `JrnlRow` sigue sin tener
+identificador único. Full refresh sigue siendo la decisión actual porque con
+6,521 filas el costo es irrelevante, no porque el origen lo obligue. Ver la
+nota en `modelo/silver/02_hechos.sql`.
 
 ---
 

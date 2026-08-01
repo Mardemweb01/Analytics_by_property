@@ -4,8 +4,14 @@
 -- REGLA DE ESTA CAPA: una vista por tabla de bronze, con los mismos registros
 -- y el mismo grano. Se convierte texto a fechas, se recortan espacios, se
 -- descartan duplicados y se resuelve que hacer con los nulos. Lo que NO se
--- hace todavia: cruzar entidades entre si ni aplicar reglas de negocio. Eso
--- es silver.
+-- hace todavia: cruzar ENTIDADES entre si (cliente, proveedor, cuenta) ni
+-- aplicar reglas de negocio. Eso es silver.
+--
+-- EXCEPCION -- stg_movimientos cruza stg_jrnlrow con stg_jrnlhdr. No es una
+-- excepcion a la regla de arriba: JrnlRow y JrnlHdr no son dos entidades
+-- distintas, son un mismo asiento contable que Sage particiona en dos tablas.
+-- Reensamblarlo es tipado y limpieza, no una decision de negocio -- por eso
+-- vive aca y no en silver. Ver la nota en stg_movimientos mas abajo.
 --
 -- SON VISTAS, NO TABLAS. A esta escala (6,521 movimientos) materializar no
 -- aporta: una vista siempre esta fresca y elimina un paso de carga que podria
@@ -137,11 +143,53 @@ WHERE b._rn = 1;
 GO
 
 -- ----------------------------------------------------------------------------
--- stg_movimientos -- libro diario tipado.
+-- stg_jrnlrow -- lineas de asiento tipadas. Sigue 1:1 con bronze.jrnlrow: no
+-- filtra post_order ni gl_acct_number nulos todavia -- eso pasa en
+-- stg_movimientos, despues del join, para que vw_control_calidad pueda
+-- distinguir "sin cuenta" de "sin encabezado".
+-- ----------------------------------------------------------------------------
+CREATE VIEW staging.stg_jrnlrow AS
+SELECT
+    b.post_order,
+    b.gl_acct_number,
+    COALESCE(b.monto, 0)                     AS monto,
+    b.journal,
+    NULLIF(LTRIM(RTRIM(b.descripcion)), '')  AS descripcion,
+    b.customer_record_number,
+    b.vendor_record_number,
+    TRY_CAST(b.date_cleared AS DATE)         AS fecha_conciliacion
+FROM bronze.jrnlrow b
+WHERE b._lote_id IN (SELECT lote_id FROM staging.vw_lote_actual);
+GO
+
+-- ----------------------------------------------------------------------------
+-- stg_jrnlhdr -- encabezados de asiento tipados. Sigue 1:1 con bronze.jrnlhdr.
 --
--- TRY_CAST y no CAST: una fecha malformada se vuelve NULL y la fila queda
--- reportada en vw_control_calidad, en vez de hacer explotar la carga entera.
--- Es la unica forma de que un dato sucio sea visible en lugar de fatal.
+-- TRY_CAST y no CAST: una fecha malformada se vuelve NULL en vez de hacer
+-- explotar la carga entera; queda reportada en vw_control_calidad.
+-- ----------------------------------------------------------------------------
+CREATE VIEW staging.stg_jrnlhdr AS
+SELECT
+    b.post_order,
+    TRY_CAST(b.fecha AS DATE)               AS fecha,
+    NULLIF(LTRIM(RTRIM(b.referencia)), '')  AS referencia
+FROM bronze.jrnlhdr b
+WHERE b._lote_id IN (SELECT lote_id FROM staging.vw_lote_actual);
+GO
+
+-- ----------------------------------------------------------------------------
+-- stg_movimientos -- libro diario reconstruido: stg_jrnlrow ⋈ stg_jrnlhdr por
+-- post_order.
+--
+-- Este es el unico lugar del modelo donde JrnlRow y JrnlHdr se cruzan. No es
+-- una regla de negocio -- es reensamblar un mismo asiento que Sage guarda en
+-- dos tablas, asi que corresponde a esta capa y no a silver (que es donde se
+-- cruzan ENTIDADES: cliente, proveedor, cuenta).
+--
+-- El INNER JOIN descarta lineas sin encabezado; vw_control_calidad las cuenta
+-- aparte ('jrnlrow sin encabezado') para que no desaparezcan en silencio.
+-- Los filtros de gl_acct_number y fecha nulos tambien quedan aca -- antes
+-- vivian en el extractor, que los descartaba sin dejar rastro.
 --
 -- NO se deduplica. Dos lineas identicas (misma cuenta, fecha, monto y
 -- referencia) son legitimas en contabilidad -- dos gastos iguales en el mismo
@@ -149,19 +197,19 @@ GO
 -- ----------------------------------------------------------------------------
 CREATE VIEW staging.stg_movimientos AS
 SELECT
-    TRY_CAST(m.fecha AS DATE)        AS fecha,
-    m.gl_acct_number,
-    m.customer_record_number,
-    m.vendor_record_number,
-    CAST(m.journal AS SMALLINT)      AS journal,
-    NULLIF(LTRIM(RTRIM(m.referencia)), '')  AS referencia,
-    NULLIF(LTRIM(RTRIM(m.descripcion)), '') AS descripcion,
-    COALESCE(m.monto, 0)             AS monto,
-    TRY_CAST(m.date_cleared AS DATE) AS fecha_conciliacion
-FROM bronze.movimientos m
-WHERE m._lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
-  AND m.gl_acct_number IS NOT NULL
-  AND TRY_CAST(m.fecha AS DATE) IS NOT NULL;
+    h.fecha,
+    r.gl_acct_number,
+    r.customer_record_number,
+    r.vendor_record_number,
+    CAST(r.journal AS SMALLINT) AS journal,
+    h.referencia,
+    r.descripcion,
+    r.monto,
+    r.fecha_conciliacion
+FROM staging.stg_jrnlrow r
+JOIN staging.stg_jrnlhdr h ON h.post_order = r.post_order
+WHERE r.gl_acct_number IS NOT NULL
+  AND h.fecha IS NOT NULL;
 GO
 
 -- ============================================================================

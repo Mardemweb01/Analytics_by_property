@@ -46,11 +46,11 @@ COLUMNAS = {
     "chart": ["account_id", "account_type", "account_description", "gl_acct_number"],
     "customers": ["customer_id", "nombre", "saldo", "customer_record_number"],
     "vendors": ["vendor_id", "nombre", "saldo", "vendor_record_number"],
-    "movimientos": [
-        "gl_acct_number", "fecha", "monto", "journal", "referencia",
-        "descripcion", "customer_record_number", "vendor_record_number",
-        "date_cleared",
+    "jrnlrow": [
+        "post_order", "gl_acct_number", "monto", "journal", "descripcion",
+        "customer_record_number", "vendor_record_number", "date_cleared",
     ],
+    "jrnlhdr": ["post_order", "fecha", "referencia"],
 }
 
 # Las cinco columnas de metadata que lleva toda tabla de bronze, en el orden en
@@ -69,10 +69,11 @@ ENTEROS = {
     "chart": ["account_type", "gl_acct_number"],
     "customers": ["customer_record_number"],
     "vendors": ["vendor_record_number"],
-    "movimientos": [
-        "gl_acct_number", "journal",
+    "jrnlrow": [
+        "post_order", "gl_acct_number", "journal",
         "customer_record_number", "vendor_record_number",
     ],
+    "jrnlhdr": ["post_order"],
 }
 
 
@@ -276,7 +277,8 @@ def verificar_aislamiento(cfg, propiedad):
         "SELECT 'chart' AS tabla, _propiedad_origen, COUNT(*) AS filas FROM bronze.chart GROUP BY _propiedad_origen "
         "UNION ALL SELECT 'customers', _propiedad_origen, COUNT(*) FROM bronze.customers GROUP BY _propiedad_origen "
         "UNION ALL SELECT 'vendors', _propiedad_origen, COUNT(*) FROM bronze.vendors GROUP BY _propiedad_origen "
-        "UNION ALL SELECT 'movimientos', _propiedad_origen, COUNT(*) FROM bronze.movimientos GROUP BY _propiedad_origen"
+        "UNION ALL SELECT 'jrnlrow', _propiedad_origen, COUNT(*) FROM bronze.jrnlrow GROUP BY _propiedad_origen "
+        "UNION ALL SELECT 'jrnlhdr', _propiedad_origen, COUNT(*) FROM bronze.jrnlhdr GROUP BY _propiedad_origen"
         f") AS t WHERE _propiedad_origen <> '{propiedad}'"
     )
     intrusas = filas_de(sqlcmd(cfg, consulta=consulta))

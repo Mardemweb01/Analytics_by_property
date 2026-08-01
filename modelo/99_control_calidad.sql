@@ -30,13 +30,42 @@ GROUP BY c.account_type
 
 UNION ALL
 
--- Movimientos con fecha que no parsea: quedaron fuera de stg_movimientos y por
--- lo tanto fuera de todos los totales.
-SELECT 'ERROR', 'fecha no parseable', NULL, COUNT(*)
-FROM bronze.movimientos
+-- Lineas de JrnlRow sin post_order: no se pueden vincular a ningun
+-- encabezado, asi que jamas van a entrar a stg_movimientos. Antes de la
+-- separacion en jrnlrow/jrnlhdr, este caso ni siquiera podia detectarse.
+SELECT 'ERROR', 'jrnlrow sin post_order', NULL, COUNT(*)
+FROM bronze.jrnlrow
 WHERE _lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
-  AND fecha IS NOT NULL
-  AND TRY_CAST(fecha AS DATE) IS NULL
+  AND post_order IS NULL
+
+UNION ALL
+
+-- Lineas de JrnlRow sin cuenta contable: no se pueden ubicar en ningun estado
+-- de cuenta. Antes vivia como filtro silencioso en el extractor (movimientos
+-- descartados sin dejar rastro); ahora la fila llega hasta bronze y queda
+-- contada aca antes de que stg_movimientos la excluya.
+SELECT 'ERROR', 'jrnlrow sin cuenta', NULL, COUNT(*)
+FROM bronze.jrnlrow
+WHERE _lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
+  AND gl_acct_number IS NULL
+
+UNION ALL
+
+-- Encabezados de JrnlHdr con fecha vacia o no parseable: sin fecha, la linea
+-- no se puede ubicar en ningun periodo y stg_movimientos la descarta.
+SELECT 'ERROR', 'jrnlhdr con fecha invalida', NULL, COUNT(*)
+FROM bronze.jrnlhdr
+WHERE _lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
+  AND (fecha IS NULL OR TRY_CAST(fecha AS DATE) IS NULL)
+
+UNION ALL
+
+-- Lineas de JrnlRow sin encabezado correspondiente en JrnlHdr: el INNER JOIN
+-- de stg_movimientos las descarta en silencio si nada las cuenta aca.
+SELECT 'ERROR', 'jrnlrow sin encabezado', NULL, COUNT(*)
+FROM staging.stg_jrnlrow r
+LEFT JOIN staging.stg_jrnlhdr h ON h.post_order = r.post_order
+WHERE h.post_order IS NULL
 
 UNION ALL
 

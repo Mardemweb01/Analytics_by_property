@@ -142,9 +142,13 @@ un total por una regla implícita.
 métrica está contando, y un dashboard que calla ese hueco es peor que uno que
 no carga.
 
-**La carga es full refresh, no incremental.** No es preferencia: la extracción
-no trae `PostOrder`, así que una línea de `JrnlRow` no tiene identificador
-único y no se puede hacer *upsert*. Ver la nota en `02_hechos.sql`.
+**La carga es full refresh, no incremental.** La extracción ya trae
+`PostOrder` (`extractores/movimientos.py` separa `JrnlRow` y `JrnlHdr` y
+expone la clave que los vincula), pero identifica el asiento, no la línea:
+sin un índice de fila dentro del asiento, una línea de `JrnlRow` sigue sin
+tener identificador único y no se puede hacer *upsert*. Full refresh es hoy
+una decisión de costo (6,521 filas, segundos), no una obligación del origen.
+Ver la nota en `02_hechos.sql`.
 
 ## Sobre la opción A
 
@@ -225,14 +229,14 @@ Lo que falta:
 1. **La transformación que puebla las tablas.** El DDL define la forma; falta
    el `COPY INTO` a bronze y los `INSERT ... SELECT` de staging a silver.
 2. **La extracción no separa por propiedad.** `extraer_y_guardar.py` recibe un
-   DSN por PH pero escribe siempre a `data/movimientos.json` — un segundo PH
-   pisa al primero. Con el requisito de aislamiento esto pasa de incómodo a
+   DSN por PH pero escribe siempre a `data/*.json` — un segundo PH pisa al
+   primero. Con el requisito de aislamiento esto pasa de incómodo a
    bloqueante. Ver [`../ARQUITECTURA.md`](../ARQUITECTURA.md).
 3. **La extracción no archiva.** Cada corrida sobrescribe la anterior; no hay
    historia de ninguna clase.
 4. **No hay `fact_presupuesto`.** No se extrae la tabla de presupuestos de
    Sage, así que las dos tarjetas de presupuesto del dashboard no tienen
-   origen. Falta un quinto extractor.
+   origen. Falta un sexto extractor.
 5. **La antigüedad de morosidad no se puede calcular.** El gráfico de tramos
    (0-30 / 31-60 / 61-90 / 90+) necesita saber qué factura quedó impaga y
    desde cuándo, y `JrnlRow` no vincula el cobro con el cargo que salda. Ver la

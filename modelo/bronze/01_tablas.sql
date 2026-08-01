@@ -100,26 +100,45 @@ CREATE TABLE bronze.vendors (
 GO
 
 -- ----------------------------------------------------------------------------
--- bronze.movimientos <- extractores/movimientos.py <- "JrnlRow" ⋈ "JrnlHdr"
+-- bronze.jrnlrow <- extractores/movimientos.py:extraer_jrnlrow <- "JrnlRow"
 --
--- fecha y date_cleared entran como VARCHAR porque asi las devuelve el
--- extractor (str(fecha) en Python). El parseo a DATE es trabajo de staging:
--- si una fecha viene malformada, esta capa la guarda igual y staging la
--- reporta, en vez de que la carga entera falle aca.
+-- Una fila por linea de asiento, sin cruzar con JrnlHdr y sin descartar nada:
+-- post_order y gl_acct_number pueden venir NULL (una linea sin cuenta o sin
+-- vinculo a ningun encabezado igual se guarda aca). El join con JrnlHdr y el
+-- filtro de esos nulos son trabajo de staging.stg_movimientos.
 --
--- ADVERTENCIA -- este extractor NO cumple del todo la regla de bronze. Ver
--- "Deuda conocida" al pie del archivo.
+-- date_cleared entra como VARCHAR porque asi la devuelve el extractor
+-- (str(...) en Python). El parseo a DATE es trabajo de staging.
 -- ----------------------------------------------------------------------------
-CREATE TABLE bronze.movimientos (
-    gl_acct_number          INT           NULL,
-    fecha                   VARCHAR(30)   NULL,
-    monto                   DECIMAL(19,4) NULL,
-    journal                 INT           NULL,
-    referencia              VARCHAR(100)  NULL,
-    descripcion             VARCHAR(400)  NULL,
-    customer_record_number  INT           NULL,
-    vendor_record_number    INT           NULL,
-    date_cleared            VARCHAR(30)   NULL,
+CREATE TABLE bronze.jrnlrow (
+    post_order               INT           NULL,
+    gl_acct_number           INT           NULL,
+    monto                    DECIMAL(19,4) NULL,
+    journal                  INT           NULL,
+    descripcion              VARCHAR(400)  NULL,
+    customer_record_number   INT           NULL,
+    vendor_record_number     INT           NULL,
+    date_cleared             VARCHAR(30)   NULL,
+
+    _lote_id             VARCHAR(40)  NOT NULL,
+    _propiedad_origen    VARCHAR(30)  NOT NULL,
+    _dsn_origen          VARCHAR(50)  NOT NULL,
+    _archivo_origen      VARCHAR(400) NOT NULL,
+    _cargado_en          DATETIME2(3) NOT NULL
+);
+GO
+
+-- ----------------------------------------------------------------------------
+-- bronze.jrnlhdr <- extractores/movimientos.py:extraer_jrnlhdr <- "JrnlHdr"
+--
+-- Un encabezado por asiento: fecha y referencia, vinculado a las lineas por
+-- post_order. fecha entra como VARCHAR por el mismo motivo que en jrnlrow --
+-- el parseo a DATE es trabajo de staging.
+-- ----------------------------------------------------------------------------
+CREATE TABLE bronze.jrnlhdr (
+    post_order    INT          NULL,
+    fecha         VARCHAR(30)  NULL,
+    referencia    VARCHAR(100) NULL,
 
     _lote_id             VARCHAR(40)  NOT NULL,
     _propiedad_origen    VARCHAR(30)  NOT NULL,
@@ -149,24 +168,18 @@ CREATE TABLE bronze.lote (
 GO
 
 -- ============================================================================
--- DEUDA CONOCIDA -- el extractor ya transforma, y eso rompe la regla de bronze
+-- DEUDA RESUELTA -- extractores/movimientos.py ya no transforma
 -- ----------------------------------------------------------------------------
--- extractores/movimientos.py hace tres cosas que en un bronze estricto no
--- deberian pasar en la extraccion. Ninguna es grave hoy; se documentan porque
--- cuando un numero no cuadre, hay que saber si el problema esta en Sage, en la
--- extraccion o en el modelo.
+-- Hasta la version anterior, el extractor hacia tres cosas que en un bronze
+-- estricto no deberian pasar en la extraccion: descartaba filas sin cuenta o
+-- fecha, convertia None a 0.0 (perdiendo la distincion "no habia monto" vs.
+-- "el monto era cero") y hacia el join JrnlRow ⋈ JrnlHdr en Python, asi que
+-- bronze.movimientos no era espejo de ninguna tabla real de Sage.
 --
---   1. DESCARTA FILAS. Lineas 36-37: `if gl is None or fecha is None: continue`.
---      Los asientos sin cuenta o sin fecha se pierden y no queda registro de
---      cuantos fueron. Deberian cargarse y filtrarse en staging, con el conteo
---      a la vista.
---
---   2. CONVIERTE NULL A CERO. La funcion _num() mapea None -> 0.0. Despues de
---      eso no se puede distinguir "no habia monto" de "el monto era cero".
---      Perdida de informacion irreversible.
---
---   3. HACE EL JOIN. JrnlRow ⋈ JrnlHdr ocurre en el SELECT de extraccion, asi
---      que bronze.movimientos no es espejo de una tabla de Sage sino de una
---      vista nuestra. Es razonable por eficiencia, pero conviene tenerlo
---      explicito.
+-- Las tres se resolvieron juntas: extraer_jrnlrow y extraer_jrnlhdr copian
+-- cada tabla tal cual (nulos incluidos, sin cruzar nada), y bronze.jrnlrow /
+-- bronze.jrnlhdr son ahora mirror fiel del origen. El filtro de nulos y el
+-- join quedaron en staging.stg_movimientos, que es donde correspondian segun
+-- la regla de esta capa. vw_control_calidad reporta lo que ese filtro
+-- descarta, para que no desaparezca en silencio como antes.
 -- ============================================================================
