@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Alias de imports. Sin `baseUrl`: TypeScript 6 lo deprecó, y `paths`
+       ya resuelve relativo a la ubicación de este tsconfig. */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    /* Strict, por encima del `strict` base.
+
+       `noUncheckedIndexedAccess` se queda: obliga a manejar el caso de índice
+       fuera de rango, que en series de gráficos y tablas es un error real y
+       frecuente (`datos[i].valor` cuando la serie viene vacía).
+
+       `exactOptionalPropertyTypes` se dejó FUERA a conciencia. Distingue entre
+       "prop ausente" y "prop presente con valor undefined", distinción que
+       React no hace: pasar `className={undefined}` es idéntico a no pasarlo.
+       Activarlo obliga a anotar `| undefined` en cada prop opcional de cada
+       componente —decenas de anotaciones— sin atrapar un solo bug en la capa
+       de UI. En el modelo de dominio aportaría, pero ahí ya tenemos tipos
+       cerrados y `readonly`. */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es-PA" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Resumen financiero ejecutivo para administración de propiedades horizontales."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Resumen Financiero · Mardem Analytics</title>
+    <script>
+      // Aplica el tema antes del primer paint para evitar el flash de tema
+      // claro cuando el usuario tiene modo oscuro guardado. Debe quedar
+      // inline y sincrónico: cualquier import lo haría llegar tarde.
+      ;(() => {
+        try {
+          const guardado = localStorage.getItem('mardem-theme')
+          const prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches
+          const tema = guardado ?? (prefiereOscuro ? 'dark' : 'light')
+          document.documentElement.classList.toggle('dark', tema === 'dark')
+          document.documentElement.dataset.theme = tema
+        } catch {
+          // localStorage bloqueado (modo privado / iframe): seguimos en claro.
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

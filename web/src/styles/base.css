@@ -1,0 +1,138 @@
+/* ============================================================================
+ * BASE — estilos de elemento y utilidades transversales
+ * ----------------------------------------------------------------------------
+ * Solo lo que debe aplicar globalmente. Cualquier cosa específica de un
+ * componente vive en el componente.
+ * ========================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    /* Evita el salto horizontal del layout cuando una vista tiene scroll y
+       otra no — muy visible al navegar entre páginas del dashboard. */
+    scrollbar-gutter: stable;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.25rem;
+    /* `cv11` desambigua l/1/I y `ss01` mejora las formas de a/g: en una
+       pantalla llena de códigos de cuenta e importes, la legibilidad de los
+       caracteres confundibles no es un detalle estético. */
+    font-feature-settings:
+      'cv11' 1,
+      'ss01' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Anillo de foco visible y consistente en toda la app. Usamos
+     `:focus-visible` (no `:focus`) para que aparezca en navegación por
+     teclado pero no al hacer click con el mouse. Requisito WCAG 2.4.7. */
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+    border-radius: var(--corner-xs);
+  }
+
+  /* Los números financieros SIEMPRE tabulares: sin esto, las cifras de una
+     columna no alinean sus unidades/decenas/centenas y comparar de un
+     vistazo se vuelve imposible. Es la razón de ser de la clase. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings:
+      'tnum' 1,
+      'cv11' 1;
+  }
+
+  /* Respeta la preferencia del sistema de reducir movimiento. Obligatorio:
+     las animaciones de entrada y los contadores animados pueden disparar
+     malestar vestibular. No las desactivamos del todo (eso rompería
+     transiciones que comunican estado), las reducimos a algo instantáneo. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Scrollbar discreta, alineada al tema. Firefox usa el estándar;
+     Chromium/WebKit todavía necesitan el prefijo. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border-strong);
+    border-radius: var(--corner-full);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--foreground-subtle);
+    background-clip: content-box;
+  }
+
+  /* Cambio de tema sin flash: transicionamos color/fondo globalmente durante
+     el toggle. `[data-theme-changing]` lo activa solo mientras dura el
+     cambio, para no pagar el costo de la transición en cada hover. */
+  [data-theme-changing] * {
+    transition:
+      background-color var(--duration-normal) var(--motion-ease-out),
+      border-color var(--duration-normal) var(--motion-ease-out),
+      color var(--duration-normal) var(--motion-ease-out) !important;
+  }
+}
+
+@layer utilities {
+  /* Contenido visible solo para lectores de pantalla. Lo usamos en los
+     encabezados de sección que son redundantes visualmente pero necesarios
+     para que la navegación por landmarks tenga sentido. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Base del skeleton: un barrido diagonal sobre el color de superficie
+     hundida. Se combina con `animate-shimmer`. */
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      var(--surface-sunken) 0%,
+      var(--background-subtle) 20%,
+      var(--surface-sunken) 40%,
+      var(--surface-sunken) 100%
+    );
+    background-size: 200% 100%;
+  }
+}

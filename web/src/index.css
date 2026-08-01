@@ -1,0 +1,25 @@
+/* ============================================================================
+ * ENTRADA DE ESTILOS
+ * ----------------------------------------------------------------------------
+ * El orden de los imports no es negociable:
+ *   1. tailwindcss        — define @layer base/components/utilities
+ *   2. tw-animate-css     — animaciones de los primitivos Radix
+ *   3. Inter Variable     — self-hosted (sin CDN: sin request externo, sin
+ *                           FOUT, y el dashboard funciona offline)
+ *   4. tokens             — las variables CSS, antes de que alguien las use
+ *   5. theme              — mapea tokens -> utilidades de Tailwind
+ *   6. base               — estilos de elemento, ya con los tokens resueltos
+ * ========================================================================== */
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/inter';
+
+@import './styles/tokens.css';
+@import './styles/theme.css';
+@import './styles/base.css';
+
+/* Tailwind v4 resuelve `dark:` con `prefers-color-scheme` por defecto. Lo
+   redefinimos contra la clase `.dark` porque el tema es una decisión del
+   usuario (persistida en localStorage), no solo del sistema operativo. */
+@custom-variant dark (&:where(.dark, .dark *));

@@ -1,0 +1,395 @@
+/* ============================================================================
+ * DESIGN TOKENS
+ * ----------------------------------------------------------------------------
+ * Dos capas, y el orden importa:
+ *
+ *   1. PRIMITIVAS  (--neutral-500, --success-600, ...)
+ *      La paleta cruda. No cambia entre temas. NUNCA se usa directo en un
+ *      componente: si ves `bg-[var(--success-600)]` en un .tsx, es un bug.
+ *
+ *   2. SEMÁNTICAS  (--surface, --border, --positive, ...)
+ *      Describen intención, no color. Son las únicas que consume la UI, y son
+ *      las que se reasignan en `.dark`. Así el modo oscuro es un solo bloque
+ *      de reasignaciones y no una cacería de overrides por componente.
+ *
+ * La paleta es deliberadamente desaturada (familia Stripe / Untitled UI): en
+ * un dashboard financiero el color es señal, no decoración. Si todo grita,
+ * nada comunica — por eso el rojo de "Gastos" y el verde de "Ingresos" son los
+ * únicos acentos fuertes de la pantalla.
+ * ========================================================================== */
+
+:root {
+  /* --- Primitivas: neutrales -------------------------------------------- */
+  /* Grises fríos. Los cálidos ensucian los verdes/rojos financieros. */
+  --neutral-0: #ffffff;
+  --neutral-25: #fcfcfd;
+  --neutral-50: #f9fafb;
+  --neutral-100: #f2f4f7;
+  --neutral-200: #e4e7ec;
+  --neutral-300: #d0d5dd;
+  --neutral-400: #98a2b3;
+  --neutral-500: #667085;
+  --neutral-600: #475467;
+  --neutral-700: #344054;
+  --neutral-800: #1d2939;
+  --neutral-900: #101828;
+  --neutral-950: #0c111d;
+
+  /* --- Primitivas: marca (indigo) --------------------------------------- */
+  --brand-50: #eef4ff;
+  --brand-100: #e0eaff;
+  --brand-200: #c7d7fe;
+  --brand-300: #a4bcfd;
+  --brand-400: #8098f9;
+  --brand-500: #6172f3;
+  --brand-600: #444ce7;
+  --brand-700: #3538cd;
+  --brand-800: #2d31a6;
+  --brand-900: #2d3282;
+
+  /* --- Primitivas: éxito / positivo (verde) ----------------------------- */
+  --success-50: #ecfdf3;
+  --success-100: #dcfae6;
+  --success-200: #abefc6;
+  --success-300: #75e0a7;
+  --success-400: #47cd89;
+  --success-500: #17b26a;
+  --success-600: #079455;
+  --success-700: #067647;
+  --success-800: #085d3a;
+  --success-900: #074d31;
+
+  /* --- Primitivas: peligro / negativo (rojo) ---------------------------- */
+  --danger-50: #fef3f2;
+  --danger-100: #fee4e2;
+  --danger-200: #fecdca;
+  --danger-300: #fda29b;
+  --danger-400: #f97066;
+  --danger-500: #f04438;
+  --danger-600: #d92d20;
+  --danger-700: #b42318;
+  --danger-800: #912018;
+  --danger-900: #7a271a;
+
+  /* --- Primitivas: advertencia (ámbar) ---------------------------------- */
+  --warning-50: #fffaeb;
+  --warning-100: #fef0c7;
+  --warning-200: #fedf89;
+  --warning-300: #fec84b;
+  --warning-400: #fdb022;
+  --warning-500: #f79009;
+  --warning-600: #dc6803;
+  --warning-700: #b54708;
+  --warning-800: #93370d;
+  --warning-900: #7a2e0e;
+
+  /* --- Primitivas: info (azul) ------------------------------------------ */
+  --info-50: #eff8ff;
+  --info-100: #d1e9ff;
+  --info-200: #b2ddff;
+  --info-300: #84caff;
+  --info-400: #53b1fd;
+  --info-500: #2e90fa;
+  --info-600: #1570ef;
+  --info-700: #175cd3;
+  --info-800: #1849a9;
+  --info-900: #194185;
+
+  /* --- Primitivas: violeta ---------------------------------------------- */
+  --purple-50: #f4f3ff;
+  --purple-100: #ebe9fe;
+  --purple-200: #d9d6fe;
+  --purple-300: #bdb4fe;
+  --purple-400: #9b8afb;
+  --purple-500: #7a5af8;
+  --purple-600: #6938ef;
+  --purple-700: #5925dc;
+  --purple-800: #4a1fb8;
+  --purple-900: #3e1c96;
+
+  /* --- Primitivas: turquesa (6ª serie para categorías de gasto) --------- */
+  --teal-50: #f0fdf9;
+  --teal-100: #ccfbef;
+  --teal-200: #99f6e0;
+  --teal-300: #5fe9d0;
+  --teal-400: #2ed3b7;
+  --teal-500: #15b79e;
+  --teal-600: #0e9384;
+  --teal-700: #107569;
+  --teal-800: #125d56;
+  --teal-900: #134e48;
+
+  /* ======================================================================
+   * SEMÁNTICAS — TEMA CLARO
+   * ==================================================================== */
+
+  /* Superficies. `background` es el lienzo; `surface` son las cards que
+     flotan encima. El contraste entre ambos es mínimo a propósito: la
+     separación la hacen el borde y la sombra, no un salto de color. */
+  --background: var(--neutral-50);
+  --background-subtle: var(--neutral-100);
+  --surface: var(--neutral-0);
+  --surface-raised: var(--neutral-0);
+  --surface-sunken: var(--neutral-50);
+  --surface-hover: var(--neutral-50);
+  --surface-active: var(--neutral-100);
+  --surface-overlay: var(--neutral-0);
+
+  /* Texto. Cuatro niveles alcanzan para toda la jerarquía; un quinto genera
+     decisiones arbitrarias sin ganancia visual. */
+  --foreground: var(--neutral-900);
+  --foreground-secondary: var(--neutral-700);
+  --foreground-muted: var(--neutral-500);
+  --foreground-subtle: var(--neutral-400);
+  --foreground-on-accent: var(--neutral-0);
+
+  /* Bordes */
+  --border: var(--neutral-200);
+  --border-subtle: var(--neutral-100);
+  --border-strong: var(--neutral-300);
+  --border-focus: var(--brand-600);
+
+  /* Marca */
+  --primary: var(--brand-600);
+  --primary-hover: var(--brand-700);
+  --primary-active: var(--brand-800);
+  --primary-subtle: var(--brand-50);
+  --primary-subtle-hover: var(--brand-100);
+  --primary-foreground: var(--neutral-0);
+  --primary-border: var(--brand-200);
+
+  --secondary: var(--neutral-100);
+  --secondary-hover: var(--neutral-200);
+  --secondary-foreground: var(--neutral-700);
+
+  /* Estados. `-subtle` = fondo tintado del icono; el sólido va en el texto
+     del valor y en las series de los gráficos. */
+  --positive: var(--success-600);
+  --positive-strong: var(--success-700);
+  --positive-subtle: var(--success-50);
+  --positive-border: var(--success-200);
+  --positive-foreground: var(--success-700);
+
+  --negative: var(--danger-600);
+  --negative-strong: var(--danger-700);
+  --negative-subtle: var(--danger-50);
+  --negative-border: var(--danger-200);
+  --negative-foreground: var(--danger-700);
+
+  --caution: var(--warning-500);
+  --caution-strong: var(--warning-700);
+  --caution-subtle: var(--warning-50);
+  --caution-border: var(--warning-200);
+  --caution-foreground: var(--warning-700);
+
+  --informative: var(--info-600);
+  --informative-strong: var(--info-700);
+  --informative-subtle: var(--info-50);
+  --informative-border: var(--info-200);
+  --informative-foreground: var(--info-700);
+
+  --accent: var(--purple-600);
+  --accent-strong: var(--purple-700);
+  --accent-subtle: var(--purple-50);
+  --accent-border: var(--purple-200);
+  --accent-foreground: var(--purple-700);
+
+  /* Series de datos. Fijas y ordenadas: la categoría N usa siempre el mismo
+     color en todos los gráficos, si no el lector tiene que releer la leyenda
+     en cada card. Elegidas para mantenerse distinguibles en deuteranopía. */
+  --chart-1: var(--info-700);
+  --chart-2: var(--success-500);
+  --chart-3: var(--warning-400);
+  --chart-4: var(--purple-500);
+  --chart-5: var(--info-400);
+  --chart-6: var(--danger-400);
+  --chart-7: var(--teal-500);
+  --chart-8: var(--neutral-400);
+
+  /* Los dos colores del eje narrativo ingresos/gastos. Separados de las
+     series categóricas porque su significado es fijo. */
+  --chart-income: var(--success-500);
+  --chart-expense: var(--danger-500);
+
+  --chart-grid: var(--neutral-200);
+  --chart-axis: var(--neutral-400);
+  --chart-tooltip-bg: var(--neutral-900);
+  --chart-tooltip-fg: var(--neutral-50);
+
+  /* Elevación. Sombras de bajo alpha y muy difusas — el objetivo es sugerir
+     que la card despega del lienzo, no dibujar un contorno oscuro.
+     Se llaman `--elevation-*` y no `--shadow-*` porque `--shadow-*` es el
+     namespace propio de Tailwind v4: reusar el nombre haría que el mapeo de
+     theme.css se referenciara a sí mismo. Misma razón detrás de `--corner-*`
+     (vs `--radius-*`) y `--motion-ease-*` (vs `--ease-*`). */
+  --elevation-xs: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  --elevation-sm: 0 1px 3px 0 rgb(16 24 40 / 0.08), 0 1px 2px -1px rgb(16 24 40 / 0.04);
+  --elevation-md: 0 4px 8px -2px rgb(16 24 40 / 0.06), 0 2px 4px -2px rgb(16 24 40 / 0.04);
+  --elevation-lg: 0 12px 16px -4px rgb(16 24 40 / 0.06), 0 4px 6px -2px rgb(16 24 40 / 0.02);
+  --elevation-xl: 0 20px 24px -4px rgb(16 24 40 / 0.07), 0 8px 8px -4px rgb(16 24 40 / 0.02);
+  --elevation-focus: 0 0 0 4px rgb(68 76 231 / 0.14);
+
+  /* ======================================================================
+   * TOKENS INDEPENDIENTES DEL TEMA
+   * ==================================================================== */
+
+  /* Radios. Las cards usan `--corner-card` (16px): el brief pide radio
+     grande, y por encima de ~20px la card empieza a leerse como pastilla. */
+  --corner-xs: 0.25rem; /*  4px */
+  --corner-sm: 0.375rem; /*  6px */
+  --corner-md: 0.5rem; /*  8px */
+  --corner-lg: 0.75rem; /* 12px */
+  --corner-xl: 1rem; /* 16px */
+  --corner-2xl: 1.25rem; /* 20px */
+  --corner-3xl: 1.5rem; /* 24px */
+  --corner-full: 9999px;
+  --corner-card: var(--corner-xl);
+  --corner-control: var(--corner-lg);
+
+  /* Ritmo de 8px. Tailwind mantiene su escala de 4px para ajustes finos
+     (bordes, gaps de iconos); estos tokens son el ritmo de layout y todos
+     son múltiplos de 8. La regla práctica: separación entre bloques => usar
+     estos; separación dentro de un control => Tailwind. */
+  --space-1: 0.5rem; /*  8px */
+  --space-2: 1rem; /* 16px */
+  --space-3: 1.5rem; /* 24px */
+  --space-4: 2rem; /* 32px */
+  --space-5: 2.5rem; /* 40px */
+  --space-6: 3rem; /* 48px */
+  --space-8: 4rem; /* 64px */
+  --space-10: 5rem; /* 80px */
+
+  /* Layout */
+  --sidebar-width: 16rem; /* 256px */
+  --sidebar-width-collapsed: 4.5rem; /* 72px */
+  --topbar-height: 4rem; /* 64px */
+  --content-max-width: 100rem; /* 1600px, techo para pantallas 1920+ */
+
+  /* Movimiento. `--ease-out` es una curva expo: arranca rápido y frena
+     suave, que es lo que hace que un hover se sienta responsivo y no
+     elástico. Las duraciones se mantienen cortas a propósito — el brief pide
+     "smooth, nothing exaggerated", y por encima de 300ms una UI de trabajo
+     empieza a sentirse lenta. */
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --motion-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+
+  /* Z-index nombrado: evita la escalada de `z-9999` en revisiones futuras. */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-sidebar: 20;
+  --z-topbar: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-popover: 60;
+  --z-tooltip: 70;
+  --z-toast: 80;
+}
+
+/* ==========================================================================
+ * SEMÁNTICAS — TEMA OSCURO
+ * --------------------------------------------------------------------------
+ * Solo se reasignan las semánticas; las primitivas quedan intactas.
+ *
+ * Dos ajustes que no son un simple espejo del tema claro:
+ *   - Las superficies suben de luminosidad con la elevación (background más
+ *     oscuro que surface), imitando cómo se comporta la luz real. Invertir
+ *     literalmente el tema claro produce cards que se hunden.
+ *   - Los acentos se corren un paso hacia el claro (600 -> 400/500): un
+ *     #079455 sobre fondo casi negro no llega al contraste AA.
+ * ======================================================================== */
+
+.dark {
+  --background: var(--neutral-950);
+  --background-subtle: #0a0e17;
+  --surface: var(--neutral-900);
+  --surface-raised: #16203a;
+  --surface-sunken: #0a0e17;
+  --surface-hover: #16203a;
+  --surface-active: var(--neutral-800);
+  --surface-overlay: var(--neutral-800);
+
+  --foreground: var(--neutral-50);
+  --foreground-secondary: var(--neutral-300);
+  --foreground-muted: var(--neutral-400);
+  --foreground-subtle: var(--neutral-500);
+  --foreground-on-accent: var(--neutral-0);
+
+  --border: #1f2a44;
+  --border-subtle: #172136;
+  --border-strong: var(--neutral-700);
+  --border-focus: var(--brand-400);
+
+  --primary: var(--brand-500);
+  --primary-hover: var(--brand-400);
+  --primary-active: var(--brand-300);
+  --primary-subtle: #1a1f45;
+  --primary-subtle-hover: #232a58;
+  --primary-foreground: var(--neutral-0);
+  --primary-border: #2f3875;
+
+  --secondary: var(--neutral-800);
+  --secondary-hover: #253048;
+  --secondary-foreground: var(--neutral-300);
+
+  --positive: var(--success-400);
+  --positive-strong: var(--success-300);
+  --positive-subtle: #06291c;
+  --positive-border: #0b4a2f;
+  --positive-foreground: var(--success-300);
+
+  --negative: var(--danger-400);
+  --negative-strong: var(--danger-300);
+  --negative-subtle: #33130f;
+  --negative-border: #5e211a;
+  --negative-foreground: var(--danger-300);
+
+  --caution: var(--warning-400);
+  --caution-strong: var(--warning-300);
+  --caution-subtle: #2e1d05;
+  --caution-border: #56350a;
+  --caution-foreground: var(--warning-300);
+
+  --informative: var(--info-400);
+  --informative-strong: var(--info-300);
+  --informative-subtle: #0a2547;
+  --informative-border: #12437f;
+  --informative-foreground: var(--info-300);
+
+  --accent: var(--purple-400);
+  --accent-strong: var(--purple-300);
+  --accent-subtle: #1d1442;
+  --accent-border: #35257d;
+  --accent-foreground: var(--purple-300);
+
+  --chart-1: var(--info-400);
+  --chart-2: var(--success-400);
+  --chart-3: var(--warning-400);
+  --chart-4: var(--purple-400);
+  --chart-5: var(--info-300);
+  --chart-6: var(--danger-400);
+  --chart-7: var(--teal-400);
+  --chart-8: var(--neutral-500);
+
+  --chart-income: var(--success-400);
+  --chart-expense: var(--danger-400);
+
+  --chart-grid: #1f2a44;
+  --chart-axis: var(--neutral-500);
+  --chart-tooltip-bg: var(--neutral-800);
+  --chart-tooltip-fg: var(--neutral-50);
+
+  /* En oscuro la sombra sola casi no se percibe, así que sube el alpha y se
+     apoya en el borde para definir el canto de la card. */
+  --elevation-xs: 0 1px 2px 0 rgb(0 0 0 / 0.30);
+  --elevation-sm: 0 1px 3px 0 rgb(0 0 0 / 0.40), 0 1px 2px -1px rgb(0 0 0 / 0.30);
+  --elevation-md: 0 4px 8px -2px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.30);
+  --elevation-lg: 0 12px 16px -4px rgb(0 0 0 / 0.50), 0 4px 6px -2px rgb(0 0 0 / 0.30);
+  --elevation-xl: 0 20px 24px -4px rgb(0 0 0 / 0.55), 0 8px 8px -4px rgb(0 0 0 / 0.30);
+  --elevation-focus: 0 0 0 4px rgb(97 114 243 / 0.30);
+}

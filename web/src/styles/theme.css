@@ -1,0 +1,241 @@
+/* ============================================================================
+ * THEME — puente entre los design tokens y las utilidades de Tailwind v4
+ * ----------------------------------------------------------------------------
+ * `@theme inline` es lo que hace posible el modo oscuro sin duplicar clases:
+ * emite `background-color: var(--surface)` en vez de copiar el valor resuelto,
+ * así que cuando `.dark` reasigna `--surface`, todo `bg-surface` de la app
+ * cambia solo. Con `@theme` a secas Tailwind congelaría el valor del tema
+ * claro y necesitaríamos `dark:` en cada elemento.
+ *
+ * Este archivo no inventa valores: solo expone los de tokens.css como
+ * utilidades. Cualquier color nuevo se agrega allá, nunca acá.
+ * ========================================================================== */
+
+@theme inline {
+  /* --- Tipografía -------------------------------------------------------- */
+  /* Inter Variable primero; el resto es la pila del sistema por si la fuente
+     no carga. `feature-settings` activa `cv11` (la "l" con cola, que la
+     distingue de "1" e "I") y `ss01`, importantes cuando la pantalla está
+     llena de códigos de cuenta e importes. */
+  --font-sans:
+    'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, monospace;
+
+  /* Escala tipográfica. Los tamaños suben en saltos perceptibles (no 1px de
+     diferencia): si dos niveles no se distinguen a simple vista, no son dos
+     niveles. Cada uno trae su line-height y tracking porque el interlineado
+     correcto depende del tamaño — los títulos grandes necesitan tracking
+     negativo para no verse sueltos. */
+  --text-display: 2.25rem; /* 36px */
+  --text-display--line-height: 2.5rem;
+  --text-display--letter-spacing: -0.035em;
+  --text-display--font-weight: 700;
+
+  --text-h1: 1.875rem; /* 30px */
+  --text-h1--line-height: 2.375rem;
+  --text-h1--letter-spacing: -0.03em;
+  --text-h1--font-weight: 700;
+
+  --text-h2: 1.5rem; /* 24px */
+  --text-h2--line-height: 2rem;
+  --text-h2--letter-spacing: -0.02em;
+  --text-h2--font-weight: 600;
+
+  --text-h3: 1.125rem; /* 18px */
+  --text-h3--line-height: 1.75rem;
+  --text-h3--letter-spacing: -0.015em;
+  --text-h3--font-weight: 600;
+
+  --text-h4: 1rem; /* 16px */
+  --text-h4--line-height: 1.5rem;
+  --text-h4--letter-spacing: -0.01em;
+  --text-h4--font-weight: 600;
+
+  --text-body-lg: 1rem; /* 16px */
+  --text-body-lg--line-height: 1.5rem;
+
+  --text-body: 0.875rem; /* 14px — tamaño base de la app */
+  --text-body--line-height: 1.25rem;
+
+  --text-body-sm: 0.8125rem; /* 13px */
+  --text-body-sm--line-height: 1.125rem;
+
+  --text-caption: 0.75rem; /* 12px */
+  --text-caption--line-height: 1rem;
+
+  --text-overline: 0.6875rem; /* 11px */
+  --text-overline--line-height: 1rem;
+  --text-overline--letter-spacing: 0.06em;
+  --text-overline--font-weight: 600;
+
+  /* Valores financieros. Tamaños dedicados porque el número es el
+     protagonista de una KPI card y no debe heredar la escala de texto. */
+  --text-metric-xl: 2rem; /* 32px — KPI destacada */
+  --text-metric-xl--line-height: 2.5rem;
+  --text-metric-xl--letter-spacing: -0.03em;
+  --text-metric-xl--font-weight: 700;
+
+  --text-metric-lg: 1.75rem; /* 28px */
+  --text-metric-lg--line-height: 2.25rem;
+  --text-metric-lg--letter-spacing: -0.025em;
+  --text-metric-lg--font-weight: 700;
+
+  --text-metric: 1.375rem; /* 22px */
+  --text-metric--line-height: 1.875rem;
+  --text-metric--letter-spacing: -0.02em;
+  --text-metric--font-weight: 600;
+
+  --text-metric-sm: 1rem; /* 16px — importes en tablas */
+  --text-metric-sm--line-height: 1.5rem;
+  --text-metric-sm--letter-spacing: -0.01em;
+  --text-metric-sm--font-weight: 600;
+
+  /* --- Color ------------------------------------------------------------- */
+  /* Superficies */
+  --color-background: var(--background);
+  --color-background-subtle: var(--background-subtle);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-surface-overlay: var(--surface-overlay);
+
+  /* Texto */
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-foreground-on-accent: var(--foreground-on-accent);
+
+  /* Bordes */
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-border-focus: var(--border-focus);
+
+  /* Marca */
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-subtle-hover: var(--primary-subtle-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  /* Estados */
+  --color-positive: var(--positive);
+  --color-positive-strong: var(--positive-strong);
+  --color-positive-subtle: var(--positive-subtle);
+  --color-positive-border: var(--positive-border);
+  --color-positive-foreground: var(--positive-foreground);
+
+  --color-negative: var(--negative);
+  --color-negative-strong: var(--negative-strong);
+  --color-negative-subtle: var(--negative-subtle);
+  --color-negative-border: var(--negative-border);
+  --color-negative-foreground: var(--negative-foreground);
+
+  --color-caution: var(--caution);
+  --color-caution-strong: var(--caution-strong);
+  --color-caution-subtle: var(--caution-subtle);
+  --color-caution-border: var(--caution-border);
+  --color-caution-foreground: var(--caution-foreground);
+
+  --color-informative: var(--informative);
+  --color-informative-strong: var(--informative-strong);
+  --color-informative-subtle: var(--informative-subtle);
+  --color-informative-border: var(--informative-border);
+  --color-informative-foreground: var(--informative-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-border: var(--accent-border);
+  --color-accent-foreground: var(--accent-foreground);
+
+  /* Series de datos: expuestas como utilidades para que leyendas y chips de
+     los gráficos usen exactamente el mismo color que dibuja ECharts. */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-income: var(--chart-income);
+  --color-chart-expense: var(--chart-expense);
+
+  /* --- Radios ------------------------------------------------------------ */
+  --radius-xs: var(--corner-xs);
+  --radius-sm: var(--corner-sm);
+  --radius-md: var(--corner-md);
+  --radius-lg: var(--corner-lg);
+  --radius-xl: var(--corner-xl);
+  --radius-2xl: var(--corner-2xl);
+  --radius-3xl: var(--corner-3xl);
+  --radius-card: var(--corner-card);
+  --radius-control: var(--corner-control);
+
+  /* --- Elevación --------------------------------------------------------- */
+  --shadow-xs: var(--elevation-xs);
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+  --shadow-xl: var(--elevation-xl);
+  --shadow-focus: var(--elevation-focus);
+
+  /* --- Movimiento -------------------------------------------------------- */
+  /* Sobrescribe las curvas por defecto de Tailwind con las del sistema. */
+  --ease-out: var(--motion-ease-out);
+  --ease-in: var(--motion-ease-in);
+  --ease-in-out: var(--motion-ease-in-out);
+
+  /* --- Layout ------------------------------------------------------------ */
+  --container-content: var(--content-max-width);
+
+  /* --- Breakpoints ------------------------------------------------------- */
+  /* Desktop-first, como pide el brief: los anchos objetivo son 1280/1440/
+     1728/1920 y 768/1024 son la degradación. `3xl` cubre los monitores
+     anchos donde el contenido debe dejar de estirarse. */
+  --breakpoint-sm: 40rem; /*  640px */
+  --breakpoint-md: 48rem; /*  768px */
+  --breakpoint-lg: 64rem; /* 1024px */
+  --breakpoint-xl: 80rem; /* 1280px */
+  --breakpoint-2xl: 90rem; /* 1440px */
+  --breakpoint-3xl: 108rem; /* 1728px */
+  --breakpoint-4xl: 120rem; /* 1920px */
+
+  /* --- Animaciones ------------------------------------------------------- */
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  --animate-fade-in: fade-in var(--duration-slow) var(--motion-ease-out);
+}
+
+/* Keyframes de las animaciones declaradas arriba. Van fuera de `@theme`
+   porque `@theme` solo acepta custom properties. */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
