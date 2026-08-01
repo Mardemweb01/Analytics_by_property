@@ -1,0 +1,13 @@
+# Dependencias de cargar_a_fabric.py.
+#
+# Corre en la PC de 64 bits, NO en la que tiene Sage: pandas y pyarrow no
+# publican wheels para Windows 32-bit, que es la restriccion que impone el
+# driver ODBC de Sage 50.
+#
+# Aparte hace falta sqlcmd, que ya viene con las herramientas ODBC de SQL
+# Server (Microsoft SQL Server\Client SDK\ODBC\...\Tools\Binn).
+
+pandas
+pyarrow
+azure-identity
+azure-storage-file-datalake

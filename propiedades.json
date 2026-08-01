@@ -1,0 +1,27 @@
+{
+  "_comentario": [
+    "Tabla de ruteo: propiedad -> donde vive su data. Es el unico archivo del",
+    "repo donde coexiste informacion de todas las propiedades, y por eso el",
+    "que mas hay que cuidar al editarlo. Ver ARQUITECTURA.md.",
+    "",
+    "NO va ni un secreto aca. Las credenciales se resuelven por identidad",
+    "(Entra ID) o desde Key Vault; este archivo solo dice a que workspace y a",
+    "que warehouse apunta cada PH.",
+    "",
+    "El principio: la propiedad es la UNICA entrada del proceso de carga. DSN,",
+    "carpeta, workspace y warehouse se derivan de aca, nunca se pasan sueltos",
+    "por linea de comandos. Asi no se puede armar una combinacion mezclada."
+  ],
+
+  "propiedades": {
+    "demo": {
+      "nombre": "Compania de demo de Sage (Bellwether Garden Supply)",
+      "dsn": "SAGE_DEMO",
+      "workspace": "Mardem Demo - Datos",
+      "lakehouse": "bronze",
+      "warehouse_endpoint": "REEMPLAZAR.datawarehouse.fabric.microsoft.com",
+      "warehouse": "mardem_demo",
+      "activa": true
+    }
+  }
+}
