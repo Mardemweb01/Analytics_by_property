@@ -16,7 +16,7 @@
   "propiedades": {
     "demo": {
       "nombre": "Compania de demo de Sage (Bellwether Garden Supply)",
-      "dsn": "SAGE_DEMO",
+      "dsn": "DSN_SageOficinaPrueba",
       "workspace": "Mardem Demo - Datos",
       "lakehouse": "bronze",
       "warehouse_endpoint": "REEMPLAZAR.datawarehouse.fabric.microsoft.com",
