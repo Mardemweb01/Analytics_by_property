@@ -36,7 +36,7 @@ UNION ALL
 SELECT 'ERROR', 'jrnlrow sin post_order', NULL, COUNT(*)
 FROM bronze.jrnlrow
 WHERE _lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
-  AND post_order IS NULL
+  AND "PostOrder" IS NULL
 
 UNION ALL
 
@@ -47,7 +47,7 @@ UNION ALL
 SELECT 'ERROR', 'jrnlrow sin cuenta', NULL, COUNT(*)
 FROM bronze.jrnlrow
 WHERE _lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
-  AND gl_acct_number IS NULL
+  AND "GLAcntNumber" IS NULL
 
 UNION ALL
 
@@ -56,7 +56,7 @@ UNION ALL
 SELECT 'ERROR', 'jrnlhdr con fecha invalida', NULL, COUNT(*)
 FROM bronze.jrnlhdr
 WHERE _lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
-  AND (fecha IS NULL OR TRY_CAST(fecha AS DATE) IS NULL)
+  AND ("TransactionDate" IS NULL OR TRY_CAST("TransactionDate" AS DATE) IS NULL)
 
 UNION ALL
 
@@ -66,6 +66,17 @@ SELECT 'ERROR', 'jrnlrow sin encabezado', NULL, COUNT(*)
 FROM staging.stg_jrnlrow r
 LEFT JOIN staging.stg_jrnlhdr h ON h.post_order = r.post_order
 WHERE h.post_order IS NULL
+
+UNION ALL
+
+-- Filas con include_in_gl = 0: Sage las marca como no-contables (ordenes,
+-- cotizaciones, saldos iniciales sin cuenta). stg_movimientos las excluye a
+-- proposito -- esto es AVISO, no ERROR, porque excluirlas es lo correcto.
+-- Sirve para notar si el volumen de "no contable" cambia de golpe entre
+-- corridas, lo que indicaria un cambio real en como se usa Sage.
+SELECT 'AVISO', 'jrnlrow no contable (include_in_gl=0)', NULL, COUNT(*)
+FROM staging.stg_jrnlrow
+WHERE include_in_gl = 0
 
 UNION ALL
 

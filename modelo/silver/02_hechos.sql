@@ -65,8 +65,8 @@ GO
 -- misma linea contable puede recibir un numero distinto si se recarga.
 --
 -- Ya no es una limitacion del origen: extractores/movimientos.py separa
--- JrnlRow y JrnlHdr y expone "PostOrder" en ambos (bronze.jrnlrow.post_order,
--- bronze.jrnlhdr.post_order). Pero PostOrder identifica el ASIENTO, no la
+-- JrnlRow y JrnlHdr y expone "PostOrder" en ambos (bronze.jrnlrow."PostOrder",
+-- bronze.jrnlhdr."PostOrder"). Pero PostOrder identifica el ASIENTO, no la
 -- LINEA -- dentro de un mismo post_order, dos lineas con la misma cuenta,
 -- fecha, monto y referencia siguen siendo indistinguibles entre si (y son
 -- perfectamente legitimas en contabilidad: dos gastos iguales en el mismo

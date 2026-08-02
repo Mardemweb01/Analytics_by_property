@@ -94,6 +94,55 @@ columna de `JrnlRow` que no estamos trayendo. Hoy el extractor solo lee
 > **No taparlo con un filtro en staging sin resolver esto antes.** Serían
 > 2,355.90 desapareciendo sin explicación.
 
+### Hallazgo (2026-08-01) — el monto SÍ existe en Sage, en otra tabla
+
+`JrnlRow` tiene muchas más columnas de las que extraemos hoy (`RowNumber`,
+`StockingUnitCost`, `UnitCost`, `CostRecordNumber`, etc.) pero todas las de
+costo dan 0.00 en las 49 filas de journal 8 — no es ahí donde está el dato.
+
+Hay una tabla aparte, `InventoryCosts`, vinculada por
+`PostOrderNumber = JrnlRow.PostOrder`, que sí lo tiene:
+
+```sql
+SELECT * FROM "InventoryCosts"
+WHERE "PostOrderNumber" IN (159,160,161,340,341,342,776,777,778)
+ORDER BY "PostOrderNumber", "RowNumber"
+```
+
+Para cada uno de los 9 asientos aparecen tres tipos de fila (`RecordType`):
+
+| RecordType | Qué es | Ejemplo (post_order 159) |
+|---:|---|---|
+| 10 | La venta — coincide exacto con la línea de Inventory en `JrnlRow` | 93.00 |
+| 40 | Consumo de capas de costo (FIFO), negativo | -40.50, -31.20, -21.30 (suman -93.00) |
+| 50 | Corrección posterior, `JournalType = 15` (no 8), `CostAcctRecNumber` = 83/89 | 93.00 |
+
+El `RecordType = 50` apunta exactamente a la cuenta de costo correcta (83 o 89,
+según el ítem — confirmado contra `Chart`) y trae el monto que le falta a la
+línea de Product Cost en `JrnlRow` (que se queda en 0.00). No es un dato
+perdido: Sage lo calculó y lo guardó, pero nunca lo escribió de vuelta en
+`JrnlRow.Amount` para journal 8.
+
+**Lo que todavía no se sabe:** si esos `RecordType=50` / `JournalType=15` son
+postings reales al mayor (y por lo tanto deberían sumarse a
+`fact_movimiento`) o son un ajuste interno de valuación de inventario que
+Sage nunca postea al GL por diseño — el `JournalType` (15) es distinto del
+`Journal` que ve `JrnlRow` (8), así que podrían ser dos conceptos distintos
+en el modelo interno de Sage. Confirmarlo abriendo el asiento en la interfaz
+(`Tasks > Inventory Adjustments`) y viendo si el Diario General de Sage
+muestra un tercer renglón con el costo, o si ya sale descuadrado ahí mismo.
+
+**Decisión pendiente entre dos caminos:**
+- **(a) Agregar un extractor para `InventoryCosts`** y sumar `RecordType=50`
+  a `stg_movimientos` como una línea más — resuelve el descuadre con datos
+  reales de Sage, pero agrega una sexta tabla al pipeline y exige entender
+  bien la semántica de `RecordType`/`JournalType` antes de mezclarla con el
+  libro diario (no vaya a ser que se cuente el costo dos veces si en algún
+  otro caso sí llega a `JrnlRow`).
+- **(b) Documentar como limitación conocida de `JrnlRow`** y bajar el
+  control a `AVISO` — más simple, pero deja $2,355.90 de costo de ventas sin
+  reflejar en ningún reporte mientras tanto, sabiendo que el dato existe.
+
 ---
 
 ## Caso 2a — `gl_acct_number = 0` en journal 5 (528 filas, 757.68)
@@ -185,15 +234,83 @@ para que deje de contarse como `ERROR`.
 
 | Caso | Hallazgo | Decisión | Quién / cuándo |
 |---|---|---|---|
-| 3 — journal 8 | | | |
-| 2a — gl 0 journal 5 | | | |
-| 2b — gl 0 BegBal | | | |
-| 1 — post_order -2 | | | |
-| ¿`post_order` visible en la UI? | | | |
+| 3 — journal 8 | El monto vive en `InventoryCosts` (`RecordType=50`, `JournalType=15`), no en `JrnlRow`. Falta confirmar si es posting real al GL. | Pendiente: (a) extractor nuevo, o (b) `AVISO` documentado | Claude, 2026-08-01 |
+| 2a — gl 0 journal 5 | Las 268 filas con monto ≠ 0 y `gl_acct_number=0` tienen **todas** `IncludeInGL=0`. No es un problema de mapeo de cuenta, es que Sage mismo las marca como no-contables. | **Resuelto**: filtrar `stg_movimientos` con `WHERE IncludeInGL=1` las excluye correctamente, sin reglas inventadas | Claude, 2026-08-01/02 |
+| 2b — gl 0 BegBal | Mismo mecanismo que 2a — las 4 filas de `BegBal` con `gl=0` también tienen `IncludeInGL=0` | **Resuelto** — mismo filtro que 2a lo cubre | Claude, 2026-08-01/02 |
+| 1 — post_order -2 | Las 2 filas de journal 9 no tienen encabezado en `JrnlHdr` — el `INNER JOIN` de `stg_movimientos` ya las descarta solo | **Resuelto** — no requiere regla adicional, el join existente basta; `vw_control_calidad` ya las reporta como `jrnlrow sin encabezado` | Claude, 2026-08-01/02 |
+| ¿`post_order` visible en la UI? | No investigado — pendiente de confirmar en la interfaz de Sage | Pendiente | — |
+
+**Conclusión de la fila de arriba:** con el único cambio `WHERE IncludeInGL=1` en `stg_movimientos` (además del join ya existente), quedan resueltos los Casos 1, 2a y 2b. El Caso 3 (`InventoryCosts`) sigue abierto — es el único que no se explica por este flag.
 
 Con los cuatro resueltos, los cambios caen en `modelo/staging/01_vistas.sql` y
 `modelo/99_control_calidad.sql` — salvo que el caso 3 obligue a tocar el
 extractor.
+
+---
+
+## Validación contra datos reales (2026-08-02) — PH Las Hortensias
+
+Todo lo de arriba se investigó contra la compañía demo (Bellwether). Para
+saber si generaliza, se creó un DSN nuevo apuntando a una compañía real y se
+corrieron los mismos chequeos.
+
+**DSN:** `DSN_PH_LAS_HORTENSIAS`, driver Pervasive ODBC Client Interface,
+apuntando a `C:\Sage\Peachtree\Company\phlashor` (creado con el ODBC Data
+Source Administrator de 32 bits — `C:\Windows\SysWOW64\odbcad32.exe`, pestaña
+*DSN de sistema*). El código corto `phlashor` es el que usa Sage internamente
+para "PH Las Hortensias"; el servidor tiene decenas de compañías PH más en la
+misma carpeta `Company\`, cada una con su propio código corto de 8
+caracteres.
+
+**Escala:** ~10x la demo — 195 cuentas, 454 clientes, 203 proveedores, 68,459
+filas de `JrnlRow`, 29,461 de `JrnlHdr` (vs. 156/35/29/6,523/596 de
+Bellwether).
+
+### Resultado — más limpia que la demo
+
+| Chequeo | Bellwether (demo) | Las Hortensias (real) |
+|---|---|---|
+| `jrnlrow` sin `post_order` | 0 | 0 |
+| `jrnlrow` sin cuenta | 268 (antes del fix de extracción) | 0 |
+| `jrnlhdr` con fecha inválida | 0 | 0 |
+| `jrnlrow` sin encabezado (Caso 1) | 2 | 0 |
+| Libro balancea (`IncludeInGL=1`) | Descuadraba $2,355.90 (Caso 3) | Cierra exacto en $0.00 |
+| Desbalance por journal | Journal 8 (Caso 3) | Ninguno — todos cierran en $0 |
+| Cuenta huérfana (`IncludeInGL=1`) | Varios (Casos 2a/2b) | 1 fila, monto $0 — sin impacto |
+
+**Único hallazgo:** 556 filas con `IncludeInGL=0` sumando -$19,046.82 — mismo
+patrón que la demo (probablemente órdenes/cotizaciones sin facturar),
+correctamente excluidas por el filtro.
+
+### Por qué importa
+
+Es la primera vez que la regla `WHERE IncludeInGL=1` se prueba contra datos
+reales, con un volumen 10 veces mayor — y se sostiene sin ajustes. El
+descuadre de journal 8 (Caso 3) **no apareció acá**: no es una característica
+estructural de `JrnlRow` en general, fue específico del dato de demo de
+Bellwether (que ya sabíamos que es una compañía de jardinería con datos de
+prueba de 2017-2022, no un PH real). Eso no cierra el Caso 3 — sigue siendo
+un problema real cuando aparece — pero sí dice que **no hay que asumir que va
+a aparecer en todos los PH**.
+
+---
+
+## Pendiente — `ReceiptTags` (no investigado todavía)
+
+Candidata fuerte para resolver la limitación de morosidad documentada en
+`modelo/gold/01_agregados.sql` (no se puede calcular antigüedad de saldos
+porque `JrnlRow` no vincula un cobro con la factura que salda).
+
+`ReceiptTags` trae `PostOrderSale` + `PostOrderRecpt` en la misma fila —
+parece ser exactamente ese vínculo. Columnas completas: sin explorar aún.
+
+**Siguiente paso cuando se retome:** columnas completas, `COUNT(*)`, y una
+muestra cruzando `PostOrderSale`/`PostOrderRecpt` contra `JrnlHdr` para
+confirmar que efectivamente conecta una venta con su cobro.
+
+`CashFlow` / `CashFlowAccount` / `CashFlowTransaction` — exploradas
+(2026-08-01), las tres con 0 filas. El módulo de Cash Flow Manager no se usó
+en esta compañía demo. Fact-shaped por esquema, sin datos que verificar.
 
 ---
 

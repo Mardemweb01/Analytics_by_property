@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 from conexion import conectar
+from extractores._comun import obtener_esquema
 from extractores.chart import extraer_chart
 from extractores.customers import extraer_customers
 from extractores.vendors import extraer_vendors
@@ -34,6 +35,17 @@ EXTRACTORES = {
     "vendors": extraer_vendors,
     "jrnlrow": extraer_jrnlrow,
     "jrnlhdr": extraer_jrnlhdr,
+}
+
+# Nombre de tabla real en Sage para cada extractor -- hace falta para pedir
+# el esquema (obtener_esquema no puede inferirlo del nombre corto del
+# extractor, ej. "jrnlrow" -> "JrnlRow").
+TABLA_SAGE = {
+    "chart": "Chart",
+    "customers": "Customers",
+    "vendors": "Vendors",
+    "jrnlrow": "JrnlRow",
+    "jrnlhdr": "JrnlHdr",
 }
 
 
@@ -55,6 +67,11 @@ def main():
         destino = DATA_DIR / f"{nombre}.json"
         destino.write_text(json.dumps(filas, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"  {len(filas)} filas -> {destino}")
+
+        esquema = obtener_esquema(conn, TABLA_SAGE[nombre])
+        destino_esquema = DATA_DIR / f"{nombre}_schema.json"
+        destino_esquema.write_text(json.dumps(esquema, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"  {len(esquema)} columnas -> {destino_esquema}")
 
     conn.close()
     print("\nListo.")

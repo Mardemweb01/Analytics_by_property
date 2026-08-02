@@ -83,41 +83,51 @@ GO
 -- Descarta filas sin gl_acct_number (no se pueden referenciar) y deduplica por
 -- numero de cuenta quedandose con la ultima aparicion. Ambos casos los cuenta
 -- vw_control_calidad: si aparecen, hay algo raro en el origen.
+--
+-- bronze.chart trae 185 columnas (todas las de Sage, incluidas las 171
+-- Balance*Dr/Cr/Net de saldo por periodo) -- esta vista solo proyecta las 4
+-- que hoy alimentan el modelo dimensional. Las columnas de periodo quedan en
+-- bronze, no se pierden; se van a usar cuando se arme el fact_saldo_periodo
+-- (ver COLUMNAS_SAGE.md), no hace falta traerlas aca todavia.
 -- ----------------------------------------------------------------------------
 CREATE VIEW staging.stg_chart AS
 SELECT
-    b.gl_acct_number,
-    NULLIF(LTRIM(RTRIM(b.account_id)), '')          AS account_id,
-    NULLIF(LTRIM(RTRIM(b.account_description)), '') AS descripcion,
-    b.account_type
+    b."GLAcntNumber"                                     AS gl_acct_number,
+    NULLIF(LTRIM(RTRIM(b."AccountID")), '')               AS account_id,
+    NULLIF(LTRIM(RTRIM(b."AccountDescription")), '')      AS descripcion,
+    b."AccountType"                                       AS account_type
 FROM (
     SELECT
         c.*,
-        ROW_NUMBER() OVER (PARTITION BY c.gl_acct_number ORDER BY c._cargado_en DESC) AS _rn
+        ROW_NUMBER() OVER (PARTITION BY c."GLAcntNumber" ORDER BY c._cargado_en DESC) AS _rn
     FROM bronze.chart c
     WHERE c._lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
-      AND c.gl_acct_number IS NOT NULL
-      AND c.account_type   IS NOT NULL
+      AND c."GLAcntNumber" IS NOT NULL
+      AND c."AccountType"  IS NOT NULL
 ) AS b
 WHERE b._rn = 1;
 GO
 
 -- ----------------------------------------------------------------------------
 -- stg_customers -- propietarios/unidades tipados.
+--
+-- bronze.customers trae 153 columnas, incluidas Sales1..42/Payments1..42
+-- (facturado/cobrado por periodo). Mismo criterio que stg_chart: quedan en
+-- bronze, no se proyectan aca hasta que haga falta el fact_saldo_periodo.
 -- ----------------------------------------------------------------------------
 CREATE VIEW staging.stg_customers AS
 SELECT
-    b.customer_record_number,
-    NULLIF(LTRIM(RTRIM(b.customer_id)), '') AS customer_id,
-    NULLIF(LTRIM(RTRIM(b.nombre)), '')      AS nombre,
-    COALESCE(b.saldo, 0)                    AS saldo_sage
+    b."CustomerRecordNumber"                          AS customer_record_number,
+    NULLIF(LTRIM(RTRIM(b."CustomerID")), '')           AS customer_id,
+    NULLIF(LTRIM(RTRIM(b."Customer_Bill_Name")), '')   AS nombre,
+    COALESCE(b."Balance", 0)                           AS saldo_sage
 FROM (
     SELECT
         c.*,
-        ROW_NUMBER() OVER (PARTITION BY c.customer_record_number ORDER BY c._cargado_en DESC) AS _rn
+        ROW_NUMBER() OVER (PARTITION BY c."CustomerRecordNumber" ORDER BY c._cargado_en DESC) AS _rn
     FROM bronze.customers c
     WHERE c._lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
-      AND c.customer_record_number IS NOT NULL
+      AND c."CustomerRecordNumber" IS NOT NULL
 ) AS b
 WHERE b._rn = 1;
 GO
@@ -127,17 +137,17 @@ GO
 -- ----------------------------------------------------------------------------
 CREATE VIEW staging.stg_vendors AS
 SELECT
-    b.vendor_record_number,
-    NULLIF(LTRIM(RTRIM(b.vendor_id)), '') AS vendor_id,
-    NULLIF(LTRIM(RTRIM(b.nombre)), '')    AS nombre,
-    COALESCE(b.saldo, 0)                  AS saldo_sage
+    b."VendorRecordNumber"                    AS vendor_record_number,
+    NULLIF(LTRIM(RTRIM(b."VendorID")), '')     AS vendor_id,
+    NULLIF(LTRIM(RTRIM(b."Name")), '')         AS nombre,
+    COALESCE(b."Balance", 0)                   AS saldo_sage
 FROM (
     SELECT
         v.*,
-        ROW_NUMBER() OVER (PARTITION BY v.vendor_record_number ORDER BY v._cargado_en DESC) AS _rn
+        ROW_NUMBER() OVER (PARTITION BY v."VendorRecordNumber" ORDER BY v._cargado_en DESC) AS _rn
     FROM bronze.vendors v
     WHERE v._lote_id IN (SELECT lote_id FROM staging.vw_lote_actual)
-      AND v.vendor_record_number IS NOT NULL
+      AND v."VendorRecordNumber" IS NOT NULL
 ) AS b
 WHERE b._rn = 1;
 GO
@@ -147,17 +157,26 @@ GO
 -- filtra post_order ni gl_acct_number nulos todavia -- eso pasa en
 -- stg_movimientos, despues del join, para que vw_control_calidad pueda
 -- distinguir "sin cuenta" de "sin encabezado".
+--
+-- bronze.jrnlrow trae 47 columnas -- se proyecta "IncludeInGL" ademas de las
+-- de siempre: es el flag que decide si la fila cuenta como movimiento
+-- contable real, o si es una orden/cotizacion que Sage nunca postea al mayor.
+-- El filtro en si se aplica en stg_movimientos (ver mas abajo), no aca --
+-- mismo criterio que gl_acct_number/fecha: se filtra despues del join, para
+-- que vw_control_calidad pueda contar cuantas filas excluyo cada motivo por
+-- separado.
 -- ----------------------------------------------------------------------------
 CREATE VIEW staging.stg_jrnlrow AS
 SELECT
-    b.post_order,
-    b.gl_acct_number,
-    COALESCE(b.monto, 0)                     AS monto,
-    b.journal,
-    NULLIF(LTRIM(RTRIM(b.descripcion)), '')  AS descripcion,
-    b.customer_record_number,
-    b.vendor_record_number,
-    TRY_CAST(b.date_cleared AS DATE)         AS fecha_conciliacion
+    b."PostOrder"                                     AS post_order,
+    b."GLAcntNumber"                                   AS gl_acct_number,
+    COALESCE(b."Amount", 0)                            AS monto,
+    b."Journal"                                        AS journal,
+    NULLIF(LTRIM(RTRIM(b."RowDescription")), '')       AS descripcion,
+    b."CustomerRecordNumber"                           AS customer_record_number,
+    b."VendorRecordNumber"                             AS vendor_record_number,
+    TRY_CAST(b."DateCleared" AS DATE)                  AS fecha_conciliacion,
+    b."IncludeInGL"                                    AS include_in_gl
 FROM bronze.jrnlrow b
 WHERE b._lote_id IN (SELECT lote_id FROM staging.vw_lote_actual);
 GO
@@ -170,9 +189,9 @@ GO
 -- ----------------------------------------------------------------------------
 CREATE VIEW staging.stg_jrnlhdr AS
 SELECT
-    b.post_order,
-    TRY_CAST(b.fecha AS DATE)               AS fecha,
-    NULLIF(LTRIM(RTRIM(b.referencia)), '')  AS referencia
+    b."PostOrder"                              AS post_order,
+    TRY_CAST(b."TransactionDate" AS DATE)       AS fecha,
+    NULLIF(LTRIM(RTRIM(b."Reference")), '')     AS referencia
 FROM bronze.jrnlhdr b
 WHERE b._lote_id IN (SELECT lote_id FROM staging.vw_lote_actual);
 GO
@@ -188,6 +207,13 @@ GO
 --
 -- El INNER JOIN descarta lineas sin encabezado; vw_control_calidad las cuenta
 -- aparte ('jrnlrow sin encabezado') para que no desaparezcan en silencio.
+--
+-- FILTRO CRITICO -- include_in_gl = 1. Sin este filtro se cuentan ordenes y
+-- cotizaciones que Sage nunca postea al mayor (confirmado contra datos
+-- reales: journals enteros con include_in_gl = 0 en el 100% de sus filas).
+-- Antes de tener esta columna extraida, el filtro no existia y el libro
+-- podia no balancear -- ver INVESTIGACION_ERRORES.md, Casos 1/2a/2b.
+--
 -- Los filtros de gl_acct_number y fecha nulos tambien quedan aca -- antes
 -- vivian en el extractor, que los descartaba sin dejar rastro.
 --
@@ -209,7 +235,8 @@ SELECT
 FROM staging.stg_jrnlrow r
 JOIN staging.stg_jrnlhdr h ON h.post_order = r.post_order
 WHERE r.gl_acct_number IS NOT NULL
-  AND h.fecha IS NOT NULL;
+  AND h.fecha IS NOT NULL
+  AND r.include_in_gl = 1;
 GO
 
 -- ============================================================================

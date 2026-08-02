@@ -39,42 +39,50 @@ CONFIG = RAIZ / "propiedades.json"
 
 ONELAKE = "https://onelake.dfs.fabric.microsoft.com"
 
-# Orden de columnas por tabla. TIENE que coincidir con la lista de columnas de
-# los COPY INTO en modelo/carga/01_bronze.sql: COPY INTO mapea por posicion, y
-# un orden distinto cargaria valores en la columna equivocada sin fallar.
-COLUMNAS = {
-    "chart": ["account_id", "account_type", "account_description", "gl_acct_number"],
-    "customers": ["customer_id", "nombre", "saldo", "customer_record_number"],
-    "vendors": ["vendor_id", "nombre", "saldo", "vendor_record_number"],
-    "jrnlrow": [
-        "post_order", "gl_acct_number", "monto", "journal", "descripcion",
-        "customer_record_number", "vendor_record_number", "date_cleared",
-    ],
-    "jrnlhdr": ["post_order", "fecha", "referencia"],
-}
+# Las 5 tablas que trae extraer_y_guardar.py. Reemplaza al viejo diccionario
+# COLUMNAS hardcodeado: desde que los extractores traen TODAS las columnas de
+# cada tabla (185 en Chart, 168 en JrnlHdr...), mantener esa lista a mano dejo
+# de ser viable. Las columnas se derivan en tiempo de carga desde
+# <tabla>_schema.json (el sidecar que deja extraer_y_guardar.py junto a cada
+# <tabla>.json) -- ver columnas_de() mas abajo.
+TABLAS = ["chart", "customers", "vendors", "jrnlrow", "jrnlhdr"]
 
 # Las cinco columnas de metadata que lleva toda tabla de bronze, en el orden en
 # que van despues de las de negocio.
 METADATA = ["_lote_id", "_propiedad_origen", "_dsn_origen", "_archivo_origen", "_cargado_en"]
 
-# Columnas que en bronze son INT y hay que forzar a entero nullable ("Int64" de
-# pandas, con I mayuscula) antes de escribir el Parquet.
+# Tipos ODBC que en bronze terminan siendo un entero (INT/SMALLINT/TINYINT) y
+# por lo tanto hay que forzar a entero nullable ("Int64" de pandas, con I
+# mayuscula) antes de escribir el Parquet. Mismo mapeo que
+# modelo/generar_bronze.py:_tipo_sql() -- tiene que coincidir, porque es lo
+# que decide si la columna en bronze es un tipo numerico o no.
 #
-# Sin esto pandas infiere float64 en cuanto la columna tiene un solo nulo --que
-# es el caso de customer_record_number y vendor_record_number, nulos en la
-# mayoria de las lineas-- y el Parquet sale con tipo double. COPY INTO contra
-# una columna INT del Warehouse entonces falla o trunca. Se detecto probando la
+# Sin este cast pandas infiere float64 en cuanto la columna tiene un solo nulo
+# -- el caso de casi cualquier *RecordNumber, nulos en la mayoria de las
+# lineas-- y el Parquet sale con tipo double. COPY INTO contra una columna
+# INT del Warehouse entonces falla o trunca. Se detecto probando la
 # preparacion contra los datos reales.
-ENTEROS = {
-    "chart": ["account_type", "gl_acct_number"],
-    "customers": ["customer_record_number"],
-    "vendors": ["vendor_record_number"],
-    "jrnlrow": [
-        "post_order", "gl_acct_number", "journal",
-        "customer_record_number", "vendor_record_number",
-    ],
-    "jrnlhdr": ["post_order"],
-}
+TIPOS_ENTEROS = {"INTEGER", "UINTEGER", "SMALLINT", "USMALLINT", "UTINYINT", "IDENTITY"}
+
+
+def columnas_de(tabla, origen):
+    """Lee <tabla>_schema.json y devuelve (columnas, enteros): la lista de
+    columnas de negocio de esa tabla, y cuales de ellas son de tipo entero.
+
+    El sidecar de esquema se genera junto con los datos (ver
+    extraer_y_guardar.py) -- viene de la misma corrida, asi que columnas y
+    datos siempre coinciden en version."""
+    archivo = origen / f"{tabla}_schema.json"
+    if not archivo.exists():
+        raise ErrorCarga(
+            f"Falta {archivo}. extraer_y_guardar.py tiene que generar el "
+            "sidecar de esquema junto con los datos -- correr la extraccion "
+            "de nuevo si este archivo es de una version vieja del extractor."
+        )
+    esquema = json.loads(archivo.read_text(encoding="utf-8"))
+    columnas = [c["columna"] for c in esquema]
+    enteros = [c["columna"] for c in esquema if c["tipo"] in TIPOS_ENTEROS]
+    return columnas, enteros
 
 
 class ErrorCarga(Exception):
@@ -143,7 +151,9 @@ def preparar_parquet(origen, destino, propiedad, cfg, lote_id, ahora):
     destino.mkdir(parents=True, exist_ok=True)
     resumen = []
 
-    for tabla, columnas in COLUMNAS.items():
+    for tabla in TABLAS:
+        columnas, enteros = columnas_de(tabla, origen)
+
         archivo = origen / f"{tabla}.json"
         if not archivo.exists():
             raise ErrorCarga(f"Falta {archivo}")
@@ -156,7 +166,7 @@ def preparar_parquet(origen, destino, propiedad, cfg, lote_id, ahora):
             raise ErrorCarga(f"{archivo.name} no trae las columnas: {', '.join(faltantes)}")
 
         df = df[columnas].copy()
-        for columna in ENTEROS[tabla]:
+        for columna in enteros:
             df[columna] = df[columna].astype("Int64")
 
         df["_lote_id"] = lote_id
