@@ -71,8 +71,16 @@ def _tipo_sql(columna: dict) -> str:
         return "INT"
     if tipo in ("SMALLINT", "USMALLINT"):
         return "SMALLINT"
+    # UTINYINT -> SMALLINT, no TINYINT: el Warehouse de Fabric no soporta
+    # TINYINT ("The data type 'tinyint' ... is not supported in this edition of
+    # SQL Server", Msg 24574 al crear la tabla). SMALLINT es el entero mas
+    # chico que si soporta y cubre el rango 0-255 sin perder nada.
+    #
+    # Tampoco BIT, aunque muchas de estas columnas parezcan booleanas
+    # (IsProspect, CustomerIsInactive...): BIT solo guarda 0/1 y bronze es
+    # copia fiel. Si Sage mete un 2 en alguna, se veria aca y no se perderia.
     if tipo == "UTINYINT":
-        return "TINYINT"
+        return "SMALLINT"
     if tipo == "DECIMAL":
         return "DECIMAL(19,4)"
     if tipo in ("DATE", "TIMESTAMP"):
@@ -166,9 +174,20 @@ CREATE TABLE bronze.lote (
     extraido_en       DATETIME2(3) NULL,
     cargado_en        DATETIME2(3) NOT NULL,
     tabla             VARCHAR(30)  NOT NULL,
-    filas_origen      INT          NOT NULL,
-    CONSTRAINT pk_bronze_lote PRIMARY KEY NONCLUSTERED (lote_id, tabla) NOT ENFORCED
+    filas_origen      INT          NOT NULL
 );
+GO
+
+-- La PK va en un ALTER aparte, no dentro del CREATE TABLE: el Warehouse de
+-- Fabric rechaza la constraint inline con "The PRIMARY KEY keyword is not
+-- supported in the CREATE TABLE statement in this edition of SQL Server"
+-- (Msg 24584), aunque la sintaxis NONCLUSTERED/NOT ENFORCED sea la correcta.
+--
+-- NOT ENFORCED es obligatorio: Fabric no valida unicidad, la PK es solo
+-- metadata para que el optimizador y las herramientas de modelado sepan cual
+-- es la clave. No sustituye a una verificacion real.
+ALTER TABLE bronze.lote
+    ADD CONSTRAINT pk_bronze_lote PRIMARY KEY NONCLUSTERED (lote_id, tabla) NOT ENFORCED;
 GO
 '''
 
