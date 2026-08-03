@@ -21,6 +21,7 @@
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -231,16 +232,48 @@ def subir(local, cfg, propiedad, lote_id):
 # Ejecucion de SQL contra el Warehouse
 # ----------------------------------------------------------------------------
 
+# go-sqlcmd (github.com/microsoft/go-sqlcmd), el reemplazo moderno de la
+# herramienta clasica. Se busca por ruta completa y no por PATH a proposito:
+# se instala con el MISMO nombre que el sqlcmd viejo de las herramientas ODBC,
+# y cual gana depende del orden del PATH. Resolver por ruta hace que no importe.
+GO_SQLCMD = Path(r"C:\Program Files\sqlcmd\sqlcmd.exe")
+
+
+def _comando_base(cfg):
+    """Arma el comando y los flags de autenticacion segun que sqlcmd haya.
+
+    El sqlcmd clasico v17 solo sabe autenticar de dos formas: contra el dominio
+    de Windows (-G solo, falla con "Default account not found" en una PC que no
+    esta unida a un dominio) o con usuario+contraseña. Ninguna sirve para una
+    cuenta Entra con MFA. go-sqlcmd agrega ActiveDirectoryInteractive, que abre
+    el navegador -- por eso se prefiere cuando esta instalado.
+
+    El UPN sale de la variable de entorno FABRIC_USER y no de propiedades.json
+    a proposito: es de quien opera, no de la propiedad. El mismo Warehouse lo
+    puede desplegar otra persona desde otra maquina."""
+    usuario = os.environ.get("FABRIC_USER")
+
+    if GO_SQLCMD.exists():
+        cmd = [str(GO_SQLCMD), "--authentication-method=ActiveDirectoryInteractive"]
+        if usuario:
+            cmd += ["-U", usuario]
+        return cmd
+
+    cmd = ["sqlcmd", "-G"]
+    if usuario:
+        cmd += ["-U", usuario]
+    return cmd
+
+
 def sqlcmd(cfg, *, archivo=None, consulta=None, variables=None):
     """Corre sqlcmd contra el Warehouse de la propiedad y devuelve stdout.
 
     -b hace que sqlcmd devuelva codigo de error si el SQL falla, que es lo que
     permite que este script aborte en vez de seguir con una carga a medias."""
-    cmd = [
-        "sqlcmd",
+    cmd = _comando_base(cfg) + [
         "-S", cfg["warehouse_endpoint"],
         "-d", cfg["warehouse"],
-        "-G", "-b",
+        "-b",
         "-h", "-1",     # sin encabezados
         "-W",           # sin relleno de espacios
         "-s", "|",      # separador de columnas
@@ -255,10 +288,15 @@ def sqlcmd(cfg, *, archivo=None, consulta=None, variables=None):
 
     proceso = subprocess.run(cmd, capture_output=True, text=True)
     if proceso.returncode != 0:
-        raise ErrorCarga(
-            f"sqlcmd fallo (codigo {proceso.returncode}):\n"
-            f"{proceso.stdout.strip()}\n{proceso.stderr.strip()}"
-        )
+        salida = f"{proceso.stdout.strip()}\n{proceso.stderr.strip()}"
+        pista = ""
+        if "Default account not found" in salida or "ActiveDirectory" in salida:
+            pista = (
+                f"\n  Autenticacion. go-sqlcmd {'SI' if GO_SQLCMD.exists() else 'NO'} esta en {GO_SQLCMD}.\n"
+                "  Si falta:  winget install Microsoft.Sqlcmd\n"
+                '  El UPN sale de FABRIC_USER:  $env:FABRIC_USER = "usuario@tudominio.onmicrosoft.com"'
+            )
+        raise ErrorCarga(f"sqlcmd fallo (codigo {proceso.returncode}):\n{salida}{pista}")
     return proceso.stdout
 
 

@@ -22,6 +22,16 @@
       "warehouse_endpoint": "REEMPLAZAR.datawarehouse.fabric.microsoft.com",
       "warehouse": "mardem_demo",
       "activa": true
+    },
+
+    "hortensias": {
+      "nombre": "PH Las Hortensias",
+      "dsn": "DSN_PH_LAS_HORTENSIAS",
+      "workspace": "Mardem Las Hortensias - Datos",
+      "lakehouse": "bronze",
+      "warehouse_endpoint": "hmlhufquvqxebbszaeuxmp26me-owtrp2vs5ivulmtmc5s5he3fre.datawarehouse.fabric.microsoft.com",
+      "warehouse": "mardem_hortensias",
+      "activa": true
     }
   }
 }
